@@ -16,6 +16,7 @@ import (
 var (
 	TOKEN_FILE      string = os.Getenv("TOKEN_FILE")
 	CREDENTIAL_FILE string = os.Getenv("CREDENTIAL_FILE")
+	SENDER_EMAIL    string = os.Getenv("SENDER_EMAIL")
 )
 
 var config *oauth2.Config
@@ -24,6 +25,10 @@ var token *oauth2.Token
 // Returns the generated client.
 func GetGoogleClient(ctx context.Context) *http.Client {
 	return config.Client(ctx, token)
+}
+
+func GetSenderEmail() string {
+	return SENDER_EMAIL
 }
 
 func init() {
@@ -40,6 +45,7 @@ func getConfig() *oauth2.Config {
 	scopes := []string{
 		gmail.GmailSendScope,
 		gmail.GmailComposeScope,
+		gmail.GmailModifyScope,
 		"https://www.googleapis.com/auth/spreadsheets.readonly",
 	}
 	// If modifying these scopes, delete your previously saved token.json.

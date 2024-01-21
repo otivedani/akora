@@ -9,6 +9,7 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
+	"time"
 
 	"mime/multipart"
 	"net/mail"
@@ -59,7 +60,6 @@ func ComposeEmail(ctx context.Context, targetEmail *mail.Address, attachmentFile
 		fmt.Println("Sent!")
 	}
 
-	return
 }
 
 func createRawEmail(targetEmail *mail.Address, attachmentFiles *[]string) *bytes.Buffer {
@@ -71,7 +71,7 @@ func createRawEmail(targetEmail *mail.Address, attachmentFiles *[]string) *bytes
 	header.Set("MIME-Version", "1.0")
 	header.Set("Content-Type", "multipart/mixed; boundary="+mixedWriter.Boundary())
 	header.Set("To", targetEmail.String())
-	header.Set("From", os.Getenv("SENDER_EMAIL"))
+	header.Set("From", config.GetSenderEmail())
 	header.Set("Subject", "Halo")
 	mixedWriter.CreatePart(header)
 
@@ -115,4 +115,108 @@ func createRawEmail(targetEmail *mail.Address, attachmentFiles *[]string) *bytes
 
 	return mixedContent
 
+}
+
+// RetrieveSentMails dumps sent mail to db (and delete)
+// TODO : separate delete operations
+func RetrieveSentMails(ctx context.Context, f func(*SentMail) error) (err error) {
+
+	client := config.GetGoogleClient(ctx)
+
+	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Fatalf("Unable to retrieve Gmail client: %v", err)
+	}
+
+	userId := "me"
+	// userId := config.GetSenderEmail()
+	// list := srv.Users.Messages.List("ameagaria.io@gmail.com")
+	err = srv.Users.Messages.List(userId).Q(`
+		from:(`+userId+`)
+		is:sent
+		(has:attachment OR has:drive)
+		subject:(Permisi Paket!)
+		`).
+		Pages(ctx, func(lmr *gmail.ListMessagesResponse) error {
+			for _, msg := range lmr.Messages {
+				getMsg := srv.Users.Messages.Get(userId, msg.Id).Format("full")
+				response, err := getMsg.Do()
+				if err != nil || response == nil {
+					log.Fatalf("error get call id:%+v", msg.Id)
+				}
+
+				mh := FromMessagePartHeader(response.Payload.Headers)
+
+				for _, v := range response.Payload.Parts {
+					if v.Filename != "" {
+						mh.FileNames = append(mh.FileNames, v.Filename)
+					}
+				}
+
+				mh.MessageId = msg.Id
+
+				if err = f(mh); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type SentMail struct {
+	Date time.Time
+	From mail.Address
+	To   mail.Address
+
+	FileNames []string
+
+	MessageId string
+
+	// MIMEVersion string       `name:"MIMEVersion"` //Value:1.0 ForceSendFields:[] NullFields:[]}
+	// MessageID   string       `name:"MessageID"`
+	// Subject     string       `name:"Subject"`
+	// ContentType string       `name:"ContentType"` //Value:multipart/mixed; boundary="0000000000006bbc9d060acb9105" ForceSendFields:[] NullFields:[]}
+}
+
+func (mh *SentMail) ParseDate(s string) {
+	t, _ := time.Parse(time.RFC1123Z, s)
+	mh.Date = t
+}
+
+func (mh *SentMail) ParseFrom(s string) {
+	addr, _ := mail.ParseAddress(s)
+	if addr == nil {
+		return
+	}
+	mh.From = *addr
+}
+
+func (mh *SentMail) ParseTo(s string) {
+	addr, _ := mail.ParseAddress(s)
+	if addr == nil {
+		return
+	}
+	mh.To = *addr
+}
+
+// NewSentMail from gmail.MessagePartHeader
+func FromMessagePartHeader(header []*gmail.MessagePartHeader) *SentMail {
+	mh := &SentMail{}
+	for _, h := range header {
+		switch h.Name {
+		case "Date":
+			mh.ParseDate(h.Value)
+		case "From":
+			mh.ParseFrom(h.Value)
+		case "To":
+			mh.ParseTo(h.Value)
+		}
+	}
+	return mh
 }
