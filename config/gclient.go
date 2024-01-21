@@ -43,6 +43,7 @@ func getConfig() *oauth2.Config {
 	}
 
 	scopes := []string{
+		gmail.MailGoogleComScope,
 		gmail.GmailSendScope,
 		gmail.GmailComposeScope,
 		gmail.GmailModifyScope,

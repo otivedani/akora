@@ -220,3 +220,27 @@ func FromMessagePartHeader(header []*gmail.MessagePartHeader) *SentMail {
 	}
 	return mh
 }
+
+// DeleteBatchMail
+func DeleteBatchMail(ctx context.Context, msgids []string) {
+	client := config.GetGoogleClient(ctx)
+
+	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Fatalf("Unable to retrieve Gmail client: %v", err)
+	}
+
+	// max 1000 per request
+	for i := 0; i < len(msgids)/1000; i++ {
+		err = srv.Users.Messages.BatchDelete("me", &gmail.BatchDeleteMessagesRequest{
+			Ids: msgids[i*1000 : (i+1)*1000],
+		}).Do()
+
+		if err != nil {
+			log.Fatalf("delete error  %+v", err)
+		}
+	}
+
+	fmt.Print(len(msgids), " deleted. bye")
+
+}
