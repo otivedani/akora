@@ -1,25 +1,26 @@
 package config
 
 import (
-	"database/sql"
 	"log"
+	"os"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const file string = "alamak.db"
-
-var sqlitedb *sql.DB
-
-// Returns the generated client.
-func GetSqliteClient() *sql.DB {
-	return sqlitedb
-}
+var sqliteDB *sqlx.DB
 
 func init() {
-	db, err := sql.Open("sqlite3", file)
+	dbPath := os.Getenv("SQLITE_DB")
+
+	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
-		log.Fatalf("DB not found, %+v", err)
+		log.Fatalf("config.sqlite:not_found::%+v", err)
 	}
-	sqlitedb = db
+
+	sqliteDB = db
+}
+
+func GetSqliteDB() *sqlx.DB {
+	return sqliteDB
 }

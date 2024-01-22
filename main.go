@@ -7,8 +7,6 @@ import (
 	"net/mail"
 	"os"
 
-	"github.com/jmoiron/sqlx"
-	"gitlab.com/ameagaria.io/akora/config"
 	"gitlab.com/ameagaria.io/akora/email"
 )
 
@@ -25,7 +23,7 @@ func main() {
 	// 	MessageId string       `db:"gmail__message_id"`
 	// }
 
-	db := config.GetSqliteClient()
+	// db := config.GetSqliteClient()
 
 	// _, err := db.Exec(`
 	// CREATE TABLE IF NOT EXISTS studio_sent_mail (
@@ -64,19 +62,6 @@ func main() {
 	// 	fmt.Printf("%+v %v\n", mh, id)
 	// 	return nil
 	// })
-	dbx := sqlx.NewDb(db, "sqlite3")
-
-	msgids := []string{}
-	err := dbx.Select(&msgids, `
-	SELECT gmail__message_id FROM studio_sent_mail WHERE date < DATETIME('now', '-30 day')
-	`)
-
-	if err != nil {
-		log.Fatalf("select error  %+v", err)
-	}
-
-	// fmt.Print(msgids)
-	email.DeleteBatchMail(ctx, msgids)
 
 	// args and flags handling
 	var isDraft = true
