@@ -14,7 +14,7 @@ func GetMailIdsBefore(days int) (messageIds []string) {
 	daysMod := fmt.Sprintf(`-%d day`, days)
 	err := sqliteDB.Select(&messageIds,
 		`
-			SELECT gmail__message_id FROM studio_sent_mail 
+			SELECT gmail__message_id FROM studio_sent_gmail 
 			WHERE date < DATETIME('now', ?)
 		`,
 		daysMod,
