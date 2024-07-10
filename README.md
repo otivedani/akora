@@ -1,5 +1,8 @@
 # akora
 
+mail-puller: 
+flow : user fills google form with emails -> (this repo) read gmails from google spreadsheet -> send files to the gmails.
+
 ```
 akora send [filename]
 ```
